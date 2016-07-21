@@ -791,7 +791,7 @@ def fullmap():
     # return render_template(
     #     'example_fullmap.html', key=GOOGLEMAPS_KEY, fullmap=get_map(), auto_refresh=auto_refresh)
     return render_template(
-        'example_fullmap.html', lat = FLOAT_LAT, long = FLOAT_LONG, key=GOOGLEMAPS_KEY, fullmap=get_map(), auto_refresh=auto_refresh)
+        'example_fullmap.html', lat = origin_lat, long = origin_lon, key=GOOGLEMAPS_KEY, fullmap=get_map(), auto_refresh=auto_refresh)
 
 @app.route('/next_loc')
 def next_loc():

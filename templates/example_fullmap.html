@@ -3,9 +3,11 @@
 
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/calcite/calcite.css">
   <title>Flask ArcGIS Maps Full Map Example</title>
   <style>
     html,
@@ -16,10 +18,41 @@
       height: 100%;
       width: 100%;
     }
+    .TOC{
+      padding: 12px 0;
+      min-width: 180px;
+      max-width: 350px;
+      overflow: hidden;
+      background-color: #fff;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      -webkit-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .TOC_Container{
+      padding: 12px 15px 12px 15px;
+      /*border-bottom: solid 1px rgba(50,50,50,0.2);*/
+      word-wrap: break-word;
+    }
+    .TOC_ul{
+      padding: 0px;
+    }
+    .TOC_ul li{
+      list-style: none;
+    }
+
+    .Pokemon_On{
+      opacity: 1;
+    }
+
+    .Pokemon_Off{
+      opacity: 0.5;
+    }
+
   </style>
 </head>
 
-<body>
+<body class="calcite">
   <div id="viewDiv"></div>
   <script src="https://js.arcgis.com/4.0/"></script>
 </body>
@@ -27,11 +60,14 @@
 <script type="text/javascript">
 var map = null;
 var view = null;
+var renderer = null;
 var pokemonCollection = [];
 var pokemonFeatures = [];
 var pokemonLayer = null;
 var userLat = {{lat}};
 var userLong = {{long}};
+var pokemonArray = ["Default", "Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard", "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree", "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot", "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok", "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran♀", "Nidorina", "Nidoqueen", "Nidoran♂", "Nidorino", "Nidoking", "Clefairy", "Clefable", "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat", "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat", "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck", "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag", "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop", "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool", "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash", "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch'd", "Doduo", "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder", "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee", "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute", "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung", "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela", "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu", "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar", "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto", "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte", "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno", "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo", "Mew"];
+var pokemonOnMap = [];
 
 require([
   "esri/Map",
@@ -40,18 +76,23 @@ require([
   "esri/geometry/Point",
   "esri/symbols/PointSymbol3D",
   "esri/symbols/IconSymbol3DLayer",
+  "esri/symbols/PictureMarkerSymbol",
   "esri/renderers/UniqueValueRenderer",
   "esri/Graphic",
+  "esri/widgets/Legend",
   "dojo/request",
+  "dojo/dom-construct",
+  "dojo/on",
+  "dojo/dom-class",
   "dojo/domReady!"
-], function(Map, SceneView, FeatureLayer, Point, PointSymbol3D, IconSymbol3DLayer, UniqueValueRenderer, Graphic, request) {
+], function(Map, SceneView, FeatureLayer, Point, PointSymbol3D, IconSymbol3DLayer, PictureMarkerSymbol, UniqueValueRenderer, Graphic, Legend, request, domConstruct, on, domClass) {
 
   function createMap(){
     console.log(userLat+", "+userLong);
 
     //initialize the map and the view
     map = new Map({
-      basemap: "streets",
+      basemap: "dark-gray",
       ground: "world-elevation"
     });
     view = new SceneView({
@@ -84,25 +125,39 @@ require([
 
     //set the renderers for the featurelayer
     var defaultSymbolURL = "/static/forts/Pstop.png";
-    var defaultPicSymbol = new PointSymbol3D({
-      symbolLayers: [new IconSymbol3DLayer({
-        size: 35,  // points
-        resource: {href: defaultSymbolURL}
-      })]
-    });
-    var renderer = new UniqueValueRenderer({
+    // var defaultPicSymbol = new PointSymbol3D({
+    //   symbolLayers: [new IconSymbol3DLayer({
+    //     size: 35,  // points
+    //     resource: {href: defaultSymbolURL}
+    //   })]
+    // });
+    var defaultPicSymbol = new PictureMarkerSymbol({
+      url: defaultSymbolURL,
+      width: "30px",
+      height: "30px"
+    })
+    renderer = new UniqueValueRenderer({
       field: "id",
       defaultSymbol: defaultPicSymbol
     });
     for(var i=1; i<=151; i++){
       var symbolURL = "/static/icons/"+i+".png";
-      var picSymbol = new PointSymbol3D({
-        symbolLayers: [new IconSymbol3DLayer({
-          size: 30,  // points
-          resource: {href: symbolURL}
-        })]
+      // var picSymbol = new PointSymbol3D({
+      //   symbolLayers: [new IconSymbol3DLayer({
+      //     size: 30,  // points
+      //     resource: {href: symbolURL}
+      //   })]
+      // });
+      var picSymbol = new PictureMarkerSymbol({
+        url: symbolURL,
+        width: "30px",
+        height: "30px"
+      })
+      renderer.addUniqueValueInfo({
+        value: i,
+        symbol: picSymbol,
+        label: pokemonArray[i]
       });
-      renderer.addUniqueValueInfo(i, picSymbol)
     }
 
 
@@ -140,6 +195,9 @@ require([
       renderer: renderer
     });
     map.add(pokemonLayer);
+
+
+
   };
 
   function addPokemonsToMap(){
@@ -168,16 +226,70 @@ require([
         pokemonLayer.source.add({
           geometry: p,
           attributes: attributes
-        })
+        });
 
+        var found = pokemonOnMap.some(function(match){
+          return match == pokemonCollection[key].id
+        });
+        if(!found){
+          pokemonOnMap.push(pokemonCollection[key].id);
+        }
       });
     }).then(function(){
       console.log(pokemonLayer.source.length);
     });
   }
 
+  function initializeLegend(){
+    //initialize the legend
+    view.then(function(){
+      var TOC_Node = domConstruct.create("div", {class: "TOC"});
+      var TOC_Container = domConstruct.create("div", {innerHTML: "<p>Legend: </p>", class: "TOC_Container"});
+      var ul = domConstruct.create("ul", {class: "TOC_ul"});
+
+      domConstruct.place(ul, TOC_Container);
+      domConstruct.place(TOC_Container, TOC_Node);
+
+      pokemonOnMap.forEach(function(pkmon){
+
+        // var li = domConstruct.create("li", {innerHTML: pokemonArray[pkmon], class: 'Pokemon_On'});
+        var li = domConstruct.create("li", {class: 'Pokemon_On'});
+        var domString = "<div><img src='/static/icons/"+pkmon+".png' alt='"+pokemonArray[pkmon]+"'> "+pokemonArray[pkmon]+" </div>"
+        var liDiv = domConstruct.toDom(domString);
+        domConstruct.place(liDiv, li);
+
+        on(li, "click", function(e){
+          console.log("CLICKED ON: "+ pkmon+ " "+pokemonArray[pkmon]);
+          if(domClass.contains(this, "Pokemon_On")){
+            domClass.replace(this, "Pokemon_Off", "Pokemon_On")
+            // pokemonLayer.renderer.uniqueValueInfos[48].symbol
+          }else{
+            domClass.replace(this, "Pokemon_On", "Pokemon_Off")
+          }
+
+        })
+        domConstruct.place(li, ul);
+      })
+
+      view.ui.add(TOC_Node, "bottom-right");
+
+
+
+      // var legend = new Legend({
+      //   view: view,
+      //   layerInfos: [{
+      //     layer: pokemonLayer,
+      //     title: "SOMETHING"
+      //   }]
+      // });
+      // view.ui.add(legend, "bottom-right");
+
+    });
+  }
+
   createMap();
   addPokemonsToMap();
+  initializeLegend();
 
 });
 
