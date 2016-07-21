@@ -49,17 +49,38 @@ require([
   function createMap(){
     console.log(userLat+", "+userLong);
 
+    //initialize the map and the view
     map = new Map({
       basemap: "streets",
       ground: "world-elevation"
     });
-
     view = new SceneView({
-      container: "viewDiv",  // Reference to the DOM node that will contain the view
-      map: map,  // References the map object created in step 3
+      container: "viewDiv",
+      map: map,
       center: [userLong, userLat],
       zoom: 15
     });
+
+
+    //set the current location
+    var locationSymbolURL = "/static/forts/Pstop.png";
+    var locationPicSymbol = new PointSymbol3D({
+      symbolLayers: [new IconSymbol3DLayer({
+        size: 10,
+        resource: { primitive: "circle" },
+        material: { color: "red" }
+      })]
+    });
+    var userLocation = new Point({
+      longitude: userLong,
+      latitude: userLat
+    });
+    var g = new Graphic({
+      geometry: userLocation,
+      symbol: locationPicSymbol
+    })
+    view.graphics.add(g);
+
 
     //set the renderers for the featurelayer
     var defaultSymbolURL = "/static/forts/Pstop.png";
@@ -69,12 +90,10 @@ require([
         resource: {href: defaultSymbolURL}
       })]
     });
-
     var renderer = new UniqueValueRenderer({
       field: "id",
       defaultSymbol: defaultPicSymbol
     });
-
     for(var i=1; i<=151; i++){
       var symbolURL = "/static/icons/"+i+".png";
       var picSymbol = new PointSymbol3D({
@@ -83,9 +102,9 @@ require([
           resource: {href: symbolURL}
         })]
       });
-
       renderer.addUniqueValueInfo(i, picSymbol)
     }
+
 
     //declare the schema of the featurelayer
     pokemonLayer = new FeatureLayer({
@@ -120,41 +139,45 @@ require([
       source: [],
       renderer: renderer
     });
-
     map.add(pokemonLayer);
-
   };
-  createMap();
 
-  request("/raw_data").then(function(text){
-    pokemonCollection = JSON.parse(text).pokemons;
+  function addPokemonsToMap(){
+    pokemonLayer.source.removeAll();
 
-    Object.keys(pokemonCollection).forEach(function(key){
-      console.log(pokemonCollection[key]);
+    request("/raw_data").then(function(text){
+      pokemonCollection = JSON.parse(text).pokemons;
 
-      var p = new Point({
-        longitude: pokemonCollection[key].lng,
-        latitude: pokemonCollection[key].lat
+      Object.keys(pokemonCollection).forEach(function(key){
+        console.log(pokemonCollection[key]);
+
+        var p = new Point({
+          longitude: pokemonCollection[key].lng,
+          latitude: pokemonCollection[key].lat
+        });
+
+        var attributes = {
+          "ObjectID": key,
+          "name": pokemonCollection[key].name,
+          "id": pokemonCollection[key].id,
+          "disappear_time": pokemonCollection[key].disappear_time,
+          "lat": pokemonCollection[key].lat,
+          "long": pokemonCollection[key].long
+        }
+
+        pokemonLayer.source.add({
+          geometry: p,
+          attributes: attributes
+        })
+
       });
-
-      var attributes = {
-        "ObjectID": key,
-        "name": pokemonCollection[key].name,
-        "id": pokemonCollection[key].id,
-        "disappear_time": pokemonCollection[key].disappear_time,
-        "lat": pokemonCollection[key].lat,
-        "long": pokemonCollection[key].long
-      }
-
-      pokemonLayer.source.add({
-        geometry: p,
-        attributes: attributes
-      })
-
+    }).then(function(){
+      console.log(pokemonLayer.source.length);
     });
-  }).then(function(){
-    console.log(pokemonLayer.source.length);
-  });
+  }
+
+  createMap();
+  addPokemonsToMap();
 
 });
 
